@@ -43,7 +43,7 @@ In the source, note the implementation of object orientism:
 #+BEGIN_SRC c
   typedef struct __STRUCT__CLASSNAME__MODEL * ClassNameRef;
 
-  struct __STRUCT__CLASSNAME__METHODS {…} ClassName;
+  struct __STRUCT__CLASSNAME__METHODS {...} ClassName;
 #+END_SRC
 
 Note that no data members of any object are truly private. However, an
