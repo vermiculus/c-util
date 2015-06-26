@@ -1,0 +1,22 @@
+class Car:
+   {:public
+        init()
+        {
+          printf("TODO")
+        }
+
+        drive(int miles)
+        {
+          printf("miles = %d", miles)
+        }
+        
+        int wheels;
+        string color;
+        double speed;
+   }
+   {:private
+        internal_method(int var)
+        {
+          printf("implementation")
+        }
+   }
