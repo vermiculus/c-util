@@ -1,10 +1,28 @@
 import util.parsing.combinator._
 
-abstract class Param
-case class Typed(ty: String, nm: String) extends Param
-case class Method(ty: Typed, args: List[Typed], src: String) extends Param
+abstract class Param {
+  def toString(cls: String) : String
+}
+case class Typed(ty: String, nm: String) extends Param {
+  override def toString() = ty + " " + nm
+  def toString(cls: String) : String = ty + " " + cls + nm
+}
 
-case class Class(name: String, pubs: List[Param], priv: List[Param])
+case class Method(ty: Typed, args: List[Typed], src: String) extends Param { 
+  override def toString() = ty + "(" + args.mkString(",") + ")" + src
+  def toString(cls: String) : String = ty.toString(cls) + "(" + args.mkString(",") + ")" + src
+}
+
+case class Class(name: String, pubs: List[Param], priv: List[Param]) {
+  override def toString() = {
+    val header = "_" + name + "_h"
+    "#ifndef " + header + "\n" +
+    "#define " + header + "\n" +
+    pubs.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n" +
+    priv.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n" +
+    "#endif //" + header + "\n"
+  }
+}
 
 class Comp extends RegexParsers with PackratParsers {
 
@@ -34,23 +52,22 @@ class Comp extends RegexParsers with PackratParsers {
     case a => a
   }
 
-  lazy val matching: PackratParser[String] = (
-      "{" ~ rep(bracefree | matching) ~ "}") ^^ {
-    case a ~ b ~ c => a + b.mkString("") + c
+  lazy val matching: PackratParser[String] = "{" ~> rep(bracefree | matching) <~ "}" ^^ {
+    case b => "{\n" + b.mkString("") + "}"
   }
 
-  lazy val features: PackratParser[List[Param]] = 
-    rep(param | method)
+  lazy val features: PackratParser[List[Param]] = rep(param | method)
 
   lazy val CClass: PackratParser[Class] =
-      ("class" ~> ident <~ ":") ~ ("{:public" ~> features <~ "}") ~ ("{:private" ~> features <~ "}") ^^ {
+      ("class" ~> ident <~ ":") ~ ("{:public" ~> features <~ "}") ~
+      ("{:private" ~> features <~ "}") ^^ {
     case nm ~ pub ~ priv => Class(nm, pub, priv)
   }
 }
 
-object Uncool extends Comp {
+object Preproc extends Comp {
   def main(args: Array[String])= {
-//  val sauce = io.Source.stdin.mkString
-    println(parseAll(CClass, "class Car: {:public int foo; int bar(int z, int s) {} } {:private int baz(int n) {}}").get)
+    val sauce = io.Source.stdin.mkString
+    println(parseAll(CClass, sauce).get)
   }
 }

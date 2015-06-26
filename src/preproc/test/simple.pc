@@ -1,0 +1,12 @@
+class Car:
+{:public
+  int foo;
+  int bar(int z, int s)
+  {
+  }
+}
+{:private
+  int baz(int n)
+  {
+  }
+}

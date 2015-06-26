@@ -1,13 +1,13 @@
 class Car:
    {:public
-        init()
+        void init()
         {
-          printf("TODO")
+          printf("TODO");
         }
 
-        drive(int miles)
+        void drive(int miles)
         {
-          printf("miles = %d", miles)
+          printf("miles = %d", miles);
         }
         
         int wheels;
@@ -15,8 +15,8 @@ class Car:
         double speed;
    }
    {:private
-        internal_method(int var)
+        void internal_method(int var)
         {
-          printf("implementation")
+          printf("implementation");
         }
    }
