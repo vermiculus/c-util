@@ -9,20 +9,20 @@ abstract class Param {
   def nm(cls: String) : String = cls + "_" + nm
   val nm : String
 }
-case class Typed(ty: String, nm: String) extends Param {
-  override def toString() = ty + " " + nm
-  def toString(cls: Class) : String = ty + " " + nm(cls.header)
+case class Typed(ty: List[String], nm: String) extends Param {
+  override def toString() = ty.mkString(" ") + " " + nm
+  def toString(cls: Class) : String = ty.mkString(" ") + " " + nm(cls.header)
 }
 
 case class Method(ty: Typed, args: List[Typed], src: String) extends Param { 
 
   val nm = ty.nm
   override def toString() = ty + "(" + args.mkString(",") + ")" + src
-  def argsString(cls: Class) : String = "(" + (List(Typed(cls.ref, "self")) ++ args).mkString(",") + ")"
+  def argsString(cls: Class) : String = "(" + (List(Typed(List(cls.ref), "self")) ++ args).mkString(",") + ")"
   def toString(cls: Class) : String = ty.toString(cls) + argsString(cls) + src
   def prototype(cls: Class) : String = ty.toString(cls) + argsString(cls) + ";"
   def signature(cls: Class) : String = {
-    ty.ty + "(*" + nm + ") " + argsString(cls)
+    ty.ty.mkString(" ") + "(*" + nm + ") " + argsString(cls)
   }
 }
 
@@ -68,7 +68,6 @@ case class Class(name: String, pubs: List[Param], priv: List[Param]) extends Top
       pubs.filter(_.isInstanceOf[Typed]).mkString(";\n") + ";\n" +
       "} *" + ref + ";\n" +
       "struct _" + ref + "_meth {\n" +
-      //TODO Proper struct thing
       ref +" (*alloc) ();\n" +
       "void (*dealloc) ();\n" +
       pubmeths.map(_.signature(this)).mkString(";\n") + ";\n" +
@@ -105,12 +104,13 @@ class Comp extends RegexParsers with PackratParsers {
     case s => s
   }
 
-  lazy val typename: PackratParser[String] = "[A-Za-z][A-Za-z0-9_]*".r ^^ {
+  lazy val typename: PackratParser[String] =
+      "([A-Za-z][A-Za-z0-9_]*)|(\\[\\s*\\])|\\*".r ^^ {
     case s => s
   }
 
-  lazy val typed: PackratParser[Typed] = typename ~ ident ^^ {
-    case a ~ b => Typed(a, b)
+  lazy val typed: PackratParser[Typed] = rep1(typename)  ^^ {
+    case a => Typed(a.reverse.tail.reverse, a.last)
   }
 
   lazy val param: PackratParser[Typed] = typed <~ ";" ^^ {

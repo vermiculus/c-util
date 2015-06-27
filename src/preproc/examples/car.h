@@ -2,10 +2,12 @@
 #include <stdlib.h>
 #ifndef _Car_h
 #define _Car_h
+//Class file for Car
+//Produced by https://github.com/vermiculus/c-util
 typedef struct _CarRef
 {
   int wheels;
-  int color;
+  const char *color;
   double speed;
 } *CarRef;
 struct _CarRef_meth
