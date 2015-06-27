@@ -5,21 +5,23 @@ class Car:
    {:public
         void init()
         {
-          printf("TODO\n");
+          printf("How fast does this car go?\n");
+          scanf("%lf", &self->speed);
+          Car.internal_method(self, 108);
         }
 
         void drive(int miles)
         {
-          printf("miles = %d\n", miles);
+          printf("speed = %lf and miles = %d\n", self->speed, miles);
         }
         
         int wheels;
-        int color;
+        char color;
         double speed;
    }
    {:private
         void internal_method(int var)
         {
-          printf("implementation\n");
+          printf("magic number is %d \n", var);
         }
    }

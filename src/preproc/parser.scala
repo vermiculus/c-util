@@ -1,3 +1,7 @@
+/**
+ *@author: Josh Snider
+ */
+
 import util.parsing.combinator._
 
 abstract class Param {
@@ -16,6 +20,7 @@ case class Method(ty: Typed, args: List[Typed], src: String) extends Param {
   override def toString() = ty + "(" + args.mkString(",") + ")" + src
   def argsString(cls: Class) : String = "(" + (List(Typed(cls.ref, "self")) ++ args).mkString(",") + ")"
   def toString(cls: Class) : String = ty.toString(cls) + argsString(cls) + src
+  def prototype(cls: Class) : String = ty.toString(cls) + argsString(cls) + ";"
   def signature(cls: Class) : String = {
     ty.ty + "(*" + nm + ") " + argsString(cls)
   }
@@ -30,23 +35,27 @@ case class Include(include: String) extends TopLevel {
 case class Class(name: String, pubs: List[Param], priv: List[Param]) extends TopLevel {
 
   val header = "_" + name + "_h"
+  val privmeths = priv.filter(_.isInstanceOf[Method]).map(_.asInstanceOf[Method])
   val pubmeths = pubs.filter(_.isInstanceOf[Method]).map(_.asInstanceOf[Method])
   val ref = name + "Ref"
 
   override def toString() = {
     "#ifndef " + header + "\n" +
       "#define " + header + "\n" +
+      "//Class file for " + name + "\n" +
+      "//Produced by https://github.com/vermiculus/c-util\n" +
       classStruct +
+      prototypes +
+      staticStruct +
       allocs() +
       methods() +
-      staticStruct +
       "#endif //" + header + "\n"
   }
 
   def allocs() = {
     ref + "\n" +
       header + "_alloc() {\n" +
-      "return (" + ref + ") malloc(sizeof(" + ref + "));\n" +
+      "return (" + ref + ") calloc(sizeof(" + ref + "), 1);\n" +
       "}\n\n" +
       "void\n" +
       header + "_dealloc(" + ref + " self) {\n" +
@@ -63,30 +72,40 @@ case class Class(name: String, pubs: List[Param], priv: List[Param]) extends Top
       ref +" (*alloc) ();\n" +
       "void (*dealloc) ();\n" +
       pubmeths.map(_.signature(this)).mkString(";\n") + ";\n" +
+      privmeths.map(_.signature(this)).mkString(";\n") + ";\n" +
       "};\n"
   }
 
   def staticStruct = {
-    if (pubmeths.length > 0) {
-      "struct _" + ref + "_meth " + name + " = {" + header + "_alloc, " + header + "_dealloc," + pubmeths.map(_.nm(header)).mkString(", ") + "};\n"
+    val meths = pubmeths ++ privmeths
+    if (meths.length > 0) {
+      "struct _" + ref + "_meth " + name + " = {" + header + "_alloc, " + header + "_dealloc," + meths.map(_.nm(header)).mkString(", ") + "};\n"
     } else {
-      "struct _" + ref + "_meth " + name + " = {alloc, dealloc};\n"
+      "struct _" + ref + "_meth " + name + " = {" + header + "_alloc, " + header + "_dealloc};\n"
     }
   }
 
   def methods() : String = {
     pubmeths.map(_.toString(this)).mkString("\n") + "\n" +
-    priv.filter(_.isInstanceOf[Method]).map(_.toString(this)).mkString("\n") + "\n"
+    privmeths.map(_.toString(this)).mkString("\n") + "\n"
+  }
+
+  def prototypes() : String = {
+
+    ref + " " + header + "_alloc();\n" +
+    "void " + header + "_dealloc(" + ref + " self);\n" +
+    pubmeths.map(_.prototype(this)).mkString("\n") + "\n" +
+    privmeths.map(_.prototype(this)).mkString("\n") + "\n"
   }
 }
 
 class Comp extends RegexParsers with PackratParsers {
 
-  lazy val ident: PackratParser[String] = "[A-Za-z0-9_]+".r ^^ {
+  lazy val ident: PackratParser[String] = "[A-Za-z][A-Za-z0-9_]*".r ^^ {
     case s => s
   }
 
-  lazy val typename: PackratParser[String] = "[A-Za-z0-9_]+".r ^^ {
+  lazy val typename: PackratParser[String] = "[A-Za-z][A-Za-z0-9_]*".r ^^ {
     case s => s
   }
 
