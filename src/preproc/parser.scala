@@ -10,6 +10,7 @@ abstract class Param {
   val nm : String
 }
 case class Typed(ty: List[String], nm: String) extends Param {
+  val isPointer = ty.find(_.contains("*")) != None
   override def toString() = ty.mkString(" ") + " " + nm
   def toString(cls: Class) : String = ty.mkString(" ") + " " + nm(cls.header)
 }
@@ -34,6 +35,7 @@ case class Include(include: String) extends TopLevel {
 
 case class Class(name: String, pubs: List[Param], priv: List[Param]) extends TopLevel {
 
+  val attrs = (pubs ++ priv).filter(_.isInstanceOf[Typed]).map(_.asInstanceOf[Typed])
   val header = "_" + name + "_h"
   val privmeths = priv.filter(_.isInstanceOf[Method]).map(_.asInstanceOf[Method])
   val pubmeths = pubs.filter(_.isInstanceOf[Method]).map(_.asInstanceOf[Method])
@@ -43,7 +45,8 @@ case class Class(name: String, pubs: List[Param], priv: List[Param]) extends Top
     "#ifndef " + header + "\n" +
       "#define " + header + "\n" +
       "//Class file for " + name + "\n" +
-      "//Produced by https://github.com/vermiculus/c-util\n" +
+      "//Produced by c-util.\n" +
+      "//Search GitHub for more information.\n" +
       classStruct +
       prototypes +
       staticStruct +
@@ -59,6 +62,7 @@ case class Class(name: String, pubs: List[Param], priv: List[Param]) extends Top
       "}\n\n" +
       "void\n" +
       header + "_dealloc(" + ref + " self) {\n" +
+      attrs.filter(_.isPointer).map(a => "free(self->" + a.nm + ");\n").mkString("") +
       "free(self);\n" +
       "}\n"
   }
