@@ -1,22 +1,25 @@
+#include <stdio.h>
+#include <stdlib.h>
+
 class Car:
    {:public
         void init()
         {
-          printf("TODO");
+          printf("TODO\n");
         }
 
         void drive(int miles)
         {
-          printf("miles = %d", miles);
+          printf("miles = %d\n", miles);
         }
         
         int wheels;
-        string color;
+        int color;
         double speed;
    }
    {:private
         void internal_method(int var)
         {
-          printf("implementation");
+          printf("implementation\n");
         }
    }

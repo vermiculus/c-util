@@ -5,7 +5,7 @@ abstract class Param {
 }
 case class Typed(ty: String, nm: String) extends Param {
   override def toString() = ty + " " + nm
-  def toString(cls: String) : String = ty + " " + cls + nm
+  def toString(cls: String) : String = ty + " " + cls + "_" + nm
 }
 
 case class Method(ty: Typed, args: List[Typed], src: String) extends Param { 
@@ -13,14 +13,44 @@ case class Method(ty: Typed, args: List[Typed], src: String) extends Param {
   def toString(cls: String) : String = ty.toString(cls) + "(" + args.mkString(",") + ")" + src
 }
 
-case class Class(name: String, pubs: List[Param], priv: List[Param]) {
+abstract class TopLevel
+
+case class Include(include: String) extends TopLevel {
+  override def toString() = include
+}
+
+case class Class(name: String, pubs: List[Param], priv: List[Param]) extends TopLevel {
   override def toString() = {
     val header = "_" + name + "_h"
     "#ifndef " + header + "\n" +
     "#define " + header + "\n" +
-    pubs.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n" +
-    priv.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n" +
+    classStruct +
+    allocs(header) +
+    methods(header) +
     "#endif //" + header + "\n"
+  }
+
+  def allocs(cls: String) = {
+    name + "Ref\n" +
+    cls + "_alloc() {\n" +
+      "return (" +name + "Ref) malloc(sizeof(" + name + "Ref));\n" +
+    "}\n\n" +
+    "void\n" +
+    cls + "_dealloc(" + name + "Ref self) {\n" +
+      "free(self);\n" +
+    "}\n"
+  }
+
+  def classStruct : String = {
+    "typedef struct _" + name + "Ref {\n" +
+    pubs.filter(_.isInstanceOf[Typed]).mkString(";\n") + ";\n" +
+    "} *" + name + "Ref;\n"
+  }
+
+  def methods(header: String) : String = {
+    //TODO alloc
+    pubs.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n" +
+    priv.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n"
   }
 }
 
@@ -63,11 +93,18 @@ class Comp extends RegexParsers with PackratParsers {
       ("{:private" ~> features <~ "}") ^^ {
     case nm ~ pub ~ priv => Class(nm, pub, priv)
   }
+
+  lazy val include: PackratParser[Include] = "#[a-z]+ [^\n]+".r ^^ {
+    case s => Include(s)
+  }
+  
+  lazy val file: PackratParser[List[TopLevel]] = rep(include | CClass)
+
 }
 
 object Preproc extends Comp {
   def main(args: Array[String])= {
     val sauce = io.Source.stdin.mkString
-    println(parseAll(CClass, sauce).get)
+    println(parseAll(file, sauce).get.mkString("\n"))
   }
 }
