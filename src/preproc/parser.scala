@@ -2,15 +2,20 @@ import util.parsing.combinator._
 
 abstract class Param {
   def toString(cls: String) : String
+  def nm(cls: String) : String = cls + "_" + nm
+  val nm : String
 }
 case class Typed(ty: String, nm: String) extends Param {
   override def toString() = ty + " " + nm
-  def toString(cls: String) : String = ty + " " + cls + "_" + nm
+  def toString(cls: String) : String = ty + " " + nm(cls)
 }
 
 case class Method(ty: Typed, args: List[Typed], src: String) extends Param { 
+
+  val nm = ty.nm
   override def toString() = ty + "(" + args.mkString(",") + ")" + src
   def toString(cls: String) : String = ty.toString(cls) + "(" + args.mkString(",") + ")" + src
+  def signature : String = ty.ty + "(*" + nm + ") (" + args.mkString(",") + ")"
 }
 
 abstract class TopLevel
@@ -20,36 +25,57 @@ case class Include(include: String) extends TopLevel {
 }
 
 case class Class(name: String, pubs: List[Param], priv: List[Param]) extends TopLevel {
+
+  val header = "_" + name + "_h"
+  val pubmeths = pubs.filter(_.isInstanceOf[Method]).map(_.asInstanceOf[Method])
+  val ref = name + "Ref"
+
   override def toString() = {
-    val header = "_" + name + "_h"
     "#ifndef " + header + "\n" +
     "#define " + header + "\n" +
     classStruct +
-    allocs(header) +
-    methods(header) +
+    allocs() +
+    methods() +
+    staticStruct +
     "#endif //" + header + "\n"
   }
 
-  def allocs(cls: String) = {
-    name + "Ref\n" +
-    cls + "_alloc() {\n" +
-      "return (" +name + "Ref) malloc(sizeof(" + name + "Ref));\n" +
+  def allocs() = {
+    ref + "\n" +
+    header + "_alloc() {\n" +
+      "return (" + ref + ") malloc(sizeof(" + ref + "));\n" +
     "}\n\n" +
     "void\n" +
-    cls + "_dealloc(" + name + "Ref self) {\n" +
+    header + "_dealloc(" + ref + " self) {\n" +
       "free(self);\n" +
     "}\n"
   }
 
   def classStruct : String = {
-    "typedef struct _" + name + "Ref {\n" +
+    //TODO alloc/dealloc
+    "typedef struct _" + ref + " {\n" +
     pubs.filter(_.isInstanceOf[Typed]).mkString(";\n") + ";\n" +
-    "} *" + name + "Ref;\n"
+    "} *" + ref + ";\n" +
+    "struct _" + ref + "_meth {\n" +
+    //TODO Proper struct thing
+    ref +" (*alloc) ();\n" +
+    "void (*dealloc) ();\n" +
+    pubmeths.map(_.signature).mkString(";\n") + ";\n" +
+    "};\n"
   }
 
-  def methods(header: String) : String = {
+  def staticStruct = {
+    //TODO alloc/dealloc
+    if (pubmeths.length > 0) {
+      "struct _" + ref + "_meth " + name + " = {" + header + "_alloc, " + header + "_dealloc," + pubmeths.map(_.nm(header)).mkString(", ") + "};\n"
+    } else {
+      "struct _" + ref + "_meth " + name + " = {alloc, dealloc};\n"
+    }
+  }
+
+  def methods() : String = {
     //TODO alloc
-    pubs.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n" +
+    pubmeths.map(_.toString(header)).mkString("\n") + "\n" +
     priv.filter(_.isInstanceOf[Method]).map(_.toString(header)).mkString("\n") + "\n"
   }
 }
